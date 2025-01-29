@@ -155,17 +155,12 @@ services:
       - HEAP_NEWSIZE=128M
       - MAX_HEAP_SIZE=512M
       - CASSANDRA_START_RPC=true
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-      nofile:
-        soft: 100000
-        hard: 100000
+      - JAVA_OPTS=-javaagent:/jmx-exporter/jmx_prometheus_javaagent.jar=7070:/jmx-exporter/config.yaml
     ports:
       - "9042:9042"
-      - "7070:7070"
+      - "7070:7070"  # JMX port for metrics
     volumes:
+      - ./jmx-exporter:/jmx-exporter
       - cassandra-data:/var/lib/cassandra
     networks:
       - kafka-net
@@ -176,6 +171,7 @@ services:
         reservations:
           memory: 512M
     restart: unless-stopped
+
 
   # MinIO (S3-compatible storage)
   minio:
@@ -322,6 +318,22 @@ services:
         reservations:
           memory: 256M
     restart: unless-stopped
+
+  cassandra-jmx-exporter:
+    image: bitnami/jmx-exporter:0.18.0-debian-11-r19
+    container_name: cassandra-jmx-exporter
+    ports:
+      - "7071:7070"  # Expose metrics on port 7070
+    environment:
+      - JAVA_OPTS=-javaagent:/opt/bitnami/jmx-exporter/jmx_prometheus_javaagent.jar=7070:/config.yaml
+    volumes:
+      - ./docker/jmx_config.yaml:/config.yaml
+    depends_on:
+      - cassandra
+    networks:
+      - kafka-net
+    restart: unless-stopped
+
 
 networks:
   kafka-net:
